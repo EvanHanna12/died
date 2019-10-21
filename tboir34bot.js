@@ -3,7 +3,7 @@ const Discord = require('discord.js');
  const client = new Discord.Client();
 
 // file system setup
-const gPath = 'gcount.txt';
+const gPath = 'gcount.txt';
 const mutePath = 'mutes.txt';
 // role menu setup
 const roleMenuChannel = '621437874998345748';
@@ -14,10 +14,14 @@ client.on('ready', () => {
  console.log(`Logged in as ${client.user.tag}!`);
  client.user.setActivity("with hopes", {type: "PLAYING"});
 // getting role menus ready
+if (roleMenu) {
  client.channels.get(roleMenuChannel).fetchMessage(roleMenu)
  .catch(console.error);
+}
+if (teamMenu) {
  client.channels.get(roleMenuChannel).fetchMessage(teamMenu)
  .catch(console.error);
+}
 });
 
 // rolebot
@@ -64,14 +68,15 @@ async function role(rct, usr, action) {
   }
  }
  if (role === false) return;
+// re-fetching the guildMember is inefficient here - find a workaround later!
  if (action === 'add') {
-  let mbr = rct.message.guild.fetchMember(usr)
+  let mbr = await rct.message.guild.fetchMember(usr)
    .catch(console.error);
   mbr.addRole(role)
    .catch(console.error);
  }
  if (action === 'remove') {
-  let mbr = rct.message.guild.fetchMember(usr)
+  let mbr = await rct.message.guild.fetchMember(usr)
    .catch(console.error);
   mbr.removeRole(role)
    .catch(console.error);
@@ -93,22 +98,34 @@ async function teamCheck(rct, usr) {
 client.on('messageReactionAdd', (rct, usr) => role(rct, usr, 'add'));
 client.on('messageReactionRemove', (rct, usr) => role(rct, usr, 'remove'));
 
-// for G command and its variants
-function increaseGCount(msg, entry) {
- fs.readFile(gPath, 'utf8', (err, data) => {
-  if (err) throw err;
-  
-  let write;
-  write = Number(data) + 1;
-  
-  fs.writeFile(gPath, write, err => {
-   if (err) throw err;
-   
-   if (write % 100 === 0) {
-    console.log(write + ' Gs reached! - ' + msg.createdAt);
-    msg.channel.send(entry + '\n' + write + ' total Gs given!')
+// .hush
+client.on('message', msg => {
+ if (/^\.hush/.test(msg.content)) {
+  if (msg.member.roles.find(rol => ((rol.id === '507317774272430090') || (rol.id === '507320094808997888')))) {
+   msg.channel.send('This feature isn\'t actually ready yet, I got really tired of a single bug, expect a patch tomorrow :(')
     .catch(console.error);
-   } else {
+  }
+ }
+});
+
+// g
+const loneG = /^(g|G|🇬|Ǵ|ǵ|Ğ|ğ|Ĝ|ĝ|Ǧ|ǧ|Ġ|ġ|Ģ|ģ|Ḡ|ḡ|Ǥ|ǥ|Ɠ|ɠ|ᶃ|ɢ|Ｇ|ｇ){1}$/g;
+
+function increaseGCount(msg, entry) {
+ fs.readFile(gPath, 'utf8', (err, data) => {
+  if (err) throw err;
+  
+  let write;
+  write = Number(data) + 1;
+  
+  fs.writeFile(gPath, write, err => {
+   if (err) throw err;
+   
+   if (write % 100 === 0) {
+    console.log(write + ' Gs reached! - ' + msg.createdAt);
+    msg.channel.send(entry + '\n' + write + ' total Gs given!')
+    .catch(console.error);
+   } else {
     msg.channel.send(entry)
     .catch(console.error);
    }
@@ -116,99 +133,19 @@ function increaseGCount(msg, entry) {
  });
 }
 
-// .hush
-client.on('message', msg => {
- if (/^\.hush/.test(msg.content)) {
-  if (msg.member.roles.find(rol => ((rol.id === '507317774272430090') || (rol.id === '507320094808997888')))) {
-   msg.channel.send('This feature isn\'t actually ready yet, I got really tired of a single bug, expect a patch tommorow :(')
-    .catch(console.error);
-  }
- }
-});
-
 // fun command interpreter
 client.on('message', msg => {
  if (msg.author.bot === true) return;
  if (msg.channel.id !== '482244470851764234') return;
+ if (loneG.test(msg.content.toString())) {
+  gtemp = msg.content.toString();
+  increaseGCount(msg, gtemp);
+  return;
+ }
  switch (msg.content) {
   case 'roll':
    msg.channel.send(Math.floor(Math.random() * 100)+1)
     .catch(console.error);
-   break;
-  case 'g':
-   increaseGCount(msg, 'g');
-   break;
-  case 'G':
-   increaseGCount(msg, 'G');
-   break;
-  case '🇬':
-   increaseGCount(msg, '🇬');
-   break;
-  case 'Ǵ':
-   increaseGCount(msg, 'Ǵ');
-   break;
-  case 'ǵ':
-   increaseGCount(msg, 'ǵ');
-   break;
-  case 'Ğ':
-   increaseGCount(msg, 'Ğ');
-   break;
-  case 'ğ':
-   increaseGCount(msg, 'ğ');
-   break;
-  case 'Ĝ':
-   increaseGCount(msg, 'Ĝ');
-   break;
-  case 'ĝ':
-   increaseGCount(msg, 'ĝ');
-   break;
-  case 'Ǧ':
-   increaseGCount(msg, 'Ǧ');
-   break;
-  case 'ǧ':
-   increaseGCount(msg, 'ǧ');
-   break;
-  case 'Ġ':
-   increaseGCount(msg, 'Ġ');
-   break;
-  case 'ġ':
-   increaseGCount(msg, 'ġ');
-   break;
-  case 'Ģ':
-   increaseGCount(msg, 'Ģ');
-   break;
-  case 'ģ':
-   increaseGCount(msg, 'ģ');
-   break;
-  case 'Ḡ':
-   increaseGCount(msg, 'Ḡ');
-   break;
-  case 'ḡ':
-   increaseGCount(msg, 'ḡ');
-   break;
-  case 'Ǥ':
-   increaseGCount(msg, 'Ǥ');
-   break;
-  case 'ǥ':
-   increaseGCount(msg, 'ǥ');
-   break;
-  case 'Ɠ':
-   increaseGCount(msg, 'Ɠ');
-   break;
-  case 'ɠ':
-   increaseGCount(msg, 'ɠ');
-   break;
-  case 'ᶃ':
-   increaseGCount(msg, 'ᶃ');
-   break;
-  case 'ɢ':
-   increaseGCount(msg, 'ɢ');
-   break;
-  case 'Ｇ':
-   increaseGCount(msg, 'Ｇ');
-   break;
-  case 'ｇ':
-   increaseGCount(msg, 'ｇ');
    break;
   default:
    break;
@@ -216,7 +153,7 @@ client.on('message', msg => {
 });
 
 // link filter definitions
-const goodLink = /\.(png|jpg|jpeg|mp4|webm|gif|com|net|org|be)/;
+const goodLink = /\.(png|jpg|jpeg|mp4|webm|gif|com|net|org|be)/g;
 
 // link filter
 client.on('message', msg => {
