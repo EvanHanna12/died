@@ -109,9 +109,7 @@ client.on('message', msg => {
 });
 
 // g
-const loneG = /^(g|G|🇬|Ǵ|ǵ|Ğ|ğ|Ĝ|ĝ|Ǧ|ǧ|Ġ|ġ|Ģ|ģ|Ḡ|ḡ|Ǥ|ǥ|Ɠ|ɠ|ᶃ|ɢ|Ｇ|ｇ){1}$/g;
-
-function increaseGCount(msg, entry) {
+function increaseGCount(msg) {
  fs.readFile(gPath, 'utf8', (err, data) => {
   if (err) throw err;
   
@@ -120,6 +118,8 @@ function increaseGCount(msg, entry) {
   
   fs.writeFile(gPath, write, err => {
    if (err) throw err;
+   
+   let entry = msg.content;
    
    if (write % 100 === 0) {
     console.log(write + ' Gs reached! - ' + msg.createdAt);
@@ -133,13 +133,14 @@ function increaseGCount(msg, entry) {
  });
 }
 
+const loneG = /^(g|G|🇬|Ǵ|ǵ|Ğ|ğ|Ĝ|ĝ|Ǧ|ǧ|Ġ|ġ|Ģ|ģ|Ḡ|ḡ|Ǥ|ǥ|Ɠ|ɠ|ᶃ|ɢ|Ｇ|ｇ){1}$/;
+
 // fun command interpreter
 client.on('message', msg => {
  if (msg.author.bot === true) return;
  if (msg.channel.id !== '482244470851764234') return;
- if (loneG.test(msg.content.toString())) {
-  gtemp = msg.content.toString();
-  increaseGCount(msg, gtemp);
+ if (loneG.test(msg.content)) {
+  increaseGCount(msg);
   return;
  }
  switch (msg.content) {
@@ -147,13 +148,17 @@ client.on('message', msg => {
    msg.channel.send(Math.floor(Math.random() * 100)+1)
     .catch(console.error);
    break;
+  case '.muffin':
+    msg.channel.send('<a:muffin:534165693638377472>')
+     .catch(console.error);
+    break;
   default:
    break;
  }
 });
 
 // link filter definitions
-const goodLink = /\.(png|jpg|jpeg|mp4|webm|gif|com|net|org|be)/g;
+const goodLink = /\.(png|jpg|jpeg|mp4|webm|gif|com|net|org|be)/;
 
 // link filter
 client.on('message', msg => {
