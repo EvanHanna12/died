@@ -1,205 +1,190 @@
 const fs = require('fs');
 const Discord = require('discord.js');
- const client = new Discord.Client();
+  const client = new Discord.Client();
 
-// file system setup
-const gPath = 'gcount.txt';
-const mutePath = 'mutes.txt';
-// role menu setup
+// database setup
+const dataPath = 'isaacdata.txt';
+
+let database = JSON.parse(fs.readFileSync(dataPath, 'utf8')); // possibly change to async? // add error handling
+function saveDatabase() {
+  let newDatabase = JSON.stringify(database);
+  fs.writeFile(dataPath, newDatabase, 'utf8', (err) => {
+    if (err) throw err;
+  });
+}
+
+const botChannel = '267047410604310530';
+const logChannel = '472484924839034880';
+
+// role menu setup - might just get this to be set and read into a file later
 const roleMenuChannel = '621437874998345748';
 const roleMenu = '';
 const teamMenu = '';
 
 client.on('ready', () => {
- console.log(`Logged in as ${client.user.tag}!`);
- client.user.setActivity("with hopes", {type: "PLAYING"});
-// getting role menus ready
-if (roleMenu) {
- client.channels.get(roleMenuChannel).fetchMessage(roleMenu)
- .catch(console.error);
-}
-if (teamMenu) {
- client.channels.get(roleMenuChannel).fetchMessage(teamMenu)
- .catch(console.error);
-}
+  console.log(`Logged in as ${client.user.tag}!`);
+  client.user.setActivity("with the silenced", {type: "PLAYING"});
+// caching role menus (note: this only works if no more than 200 messages are in the channel with the role menu)
+  if (roleMenu) {
+    client.channels.get(roleMenuChannel).fetchMessage(roleMenu)
+      .catch(console.error);
+  }
+  if (teamMenu) {
+    client.channels.get(roleMenuChannel).fetchMessage(teamMenu)
+      .catch(console.error);
+  }
 });
 
-// rolebot
+// connection crash "fix"
+client.on('error', err => {
+  throw err;
+});
+
+//////// TEMP DISABLED ////////
+
+// roles
 async function role(rct, usr, action) {
- if (usr.bot === true) return;
- let role = false;
- if (rct.message.id === roleMenu) {
-  switch (rct.emoji.id) {
-// superPeach - misc pass
-   case '620365612773933087':
-    role = '507324837413257216';
-    break;
-// uwu - rp pass
-   case '465823816594227245':
-    role = '507321320808382465';
-    break;
-   default:
-    break;
-  }
- } else if (rct.message.id === teamMenu) {
-  if (action === 'add' && (await teamCheck(rct, usr))) return;
-  switch (rct.emoji.id) {
-// thigh, tummy, pussy, tits, ass, dick, in that order
-   case '456696654599290892':
-    role = '507319175686127617';
-    break;
-   case '456696691458965506':
-    role = '507324803187867658';
-    break;
-   case '456696636375171075':
-    role = '507318167744544778';
-    break;
-   case '456696674367176710':
-    role = '507318208030703634';
-    break;
-   case '456696593601658881':
-    role = '507319147064197120';
-    break;
-   case '456696618406641668':
-    role = '507319211639570442';
-    break;
-   default:
-    break;
-  }
- }
- if (role === false) return;
-// re-fetching the guildMember is inefficient here - find a workaround later!
- if (action === 'add') {
+  if (usr.bot === true) return;
+  let role = false;
   let mbr = await rct.message.guild.fetchMember(usr)
-   .catch(console.error);
-  mbr.addRole(role)
-   .catch(console.error);
- }
- if (action === 'remove') {
-  let mbr = await rct.message.guild.fetchMember(usr)
-   .catch(console.error);
-  mbr.removeRole(role)
-   .catch(console.error);
- }
-}
-
-// check for other team roles
-async function teamCheck(rct, usr) {
- let mbr = await rct.message.guild.fetchMember(usr)
-  .catch(console.error);
- let result = mbr.roles.every(role => {
-  return ((role.id !== '507319175686127617') && (role.id !== '507324803187867658') && (role.id !== '507318167744544778') && (role.id !== '507318208030703634') && (role.id !== '507319147064197120') && (role.id !== '507319211639570442'));
- });
- result = !result;
- return result;
-}
-
-// the actual events
-client.on('messageReactionAdd', (rct, usr) => role(rct, usr, 'add'));
-client.on('messageReactionRemove', (rct, usr) => role(rct, usr, 'remove'));
-
-// .hush
-client.on('message', msg => {
- if (/^\.hush/.test(msg.content)) {
-  if (msg.member.roles.find(rol => ((rol.id === '507317774272430090') || (rol.id === '507320094808997888')))) {
-   msg.channel.send('This feature isn\'t actually ready yet, I got really tired of a single bug, expect a patch tomorrow :(')
     .catch(console.error);
+  if (rct.message.id === roleMenu) {
+    switch (rct.emoji.id) { // holy crap, replace this with an array using .find()
+      case '': // Insert Emoji ID
+        role = ''; // Insert corresponding role ID
+        break;
+    }
+  } else if (rct.message.id === teamMenu) {
+    if (action === 'add' && !(mbr.roles.every(role => {return ((role.id !== '') && (role.id !== '') && (role.id !== ''));}))) return; // replace the team role check with something more concise
+    switch (rct.emoji.id) {
+      case '':
+        role = '';
+        break;
+    }
   }
- }
-});
-
-// g
-function increaseGCount(msg) {
- fs.readFile(gPath, 'utf8', (err, data) => {
-  if (err) throw err;
-  
-  let write;
-  write = Number(data) + 1;
-  
-  fs.writeFile(gPath, write, err => {
-   if (err) throw err;
-   
-   let entry = msg.content;
-   
-   if (write % 100 === 0) {
-    console.log(write + ' Gs reached! - ' + msg.createdAt);
-    msg.channel.send(entry + '\n' + write + ' total Gs given!')
-    .catch(console.error);
-   } else {
-    msg.channel.send(entry)
-    .catch(console.error);
-   }
-  });
- });
+  if (role === false) return;
+  if (action === 'add') {
+    mbr.addRole(role)
+      .catch(console.error);
+  }
+  if (action === 'remove') {
+    mbr.removeRole(role)
+      .catch(console.error);
+  }
 }
 
-const loneG = /^(g|G|🇬|Ǵ|ǵ|Ğ|ğ|Ĝ|ĝ|Ǧ|ǧ|Ġ|ġ|Ģ|ģ|Ḡ|ḡ|Ǥ|ǥ|Ɠ|ɠ|ᶃ|ɢ|Ｇ|ｇ){1}$/;
+if (roleMenu || teamMenu) {
+  client.on('messageReactionAdd', (rct, usr) => role(rct, usr, 'add'));
+  client.on('messageReactionRemove', (rct, usr) => role(rct, usr, 'remove'));
+} else {
+  console.log('Rolebot disabled.');
+}
 
-// fun command interpreter
-client.on('message', msg => {
- if (msg.author.bot === true) return;
- if (msg.channel.id !== '482244470851764234') return;
- if (loneG.test(msg.content)) {
-  increaseGCount(msg);
-  return;
- }
- switch (msg.content) {
-  case 'roll':
-   msg.channel.send(Math.floor(Math.random() * 100)+1)
-    .catch(console.error);
-   break;
-  case '.muffin':
-    msg.channel.send('<a:muffin:534165693638377472>')
-     .catch(console.error);
-    break;
-  default:
-   break;
- }
-});
+//////// END DISABLED ZONE ////////
 
 // link filter definitions
 const goodLink = /\.(png|jpg|jpeg|mp4|webm|gif|com|net|org|be)/;
+// g definitions
+const loneG = /^(g|G|🇬|Ǵ|ǵ|Ğ|ğ|Ĝ|ĝ|Ǧ|ǧ|Ġ|ġ|Ģ|ģ|Ḡ|ḡ|Ǥ|ǥ|Ɠ|ɠ|ᶃ|ɢ|Ｇ|ｇ){1}$/;
 
-// link filter
 client.on('message', msg => {
- if (msg.author.bot === true) return;
- if ((msg.channel.id !== '277254470315016202') && ((msg.channel.id !== '455835089000202260') && (msg.channel.id !== '440881355711184906'))) return;
- if (msg.attachments.size > 0 || goodLink.test(msg.content.toLowerCase())) {
-  return;
- } else {
-  msg.delete()
-   .catch(console.error);
- }
+  // link filter
+  if ((msg.channel.id === '277254470315016202') || (msg.channel.id === '440881355711184906')) {
+    if (msg.attachments.size > 0 || goodLink.test(msg.content.toLowerCase())) {
+      return;
+    } else {
+      msg.delete()
+        .catch(console.error);
+    }
+  }
+
+  if (msg.author.bot === true) return;
+  // admin command interpreter
+  if (msg.member.roles.find(rol => (rol.id === '507317774272430090'))) {
+    if (/^\.hush/.test(msg.content)) { // .hush
+      // INSERT_HUSH_COMMAND
+      /*
+      Syntax: .hush <user> <duration> <reason>
+      */
+    }
+    switch (msg.content) {
+      case '.save':
+        saveDatabase();
+        console.log('Saved the database manually.');
+        msg.channel.send('Saved the database manually.')
+          .catch(console.error);
+        break;
+    }
+  }
+  
+  if (msg.channel.id !== botChannel) return;
+  // g
+  if (loneG.test(msg.content)) {
+    database.gcount++;
+    let toSend = msg.content;
+    if (database.gcount % 100 === 0) {
+      console.log(`${database.gcount}` + ' Gs reached! - ' + msg.createdAt);
+      toSend = toSend + '\n' + `${database.gcount}` + ' total Gs given!';
+    }
+    msg.channel.send(toSend)
+      .catch(console.error);
+    return;
+  }
+  // fun command interpreter
+  switch (msg.content) {
+    case '.roll':
+      msg.channel.send(Math.floor(Math.random() * 100)+1)
+        .catch(console.error);
+      break;
+    case '.muffin':
+      msg.channel.send('<a:muffin:534165693638377472>')
+        .catch(console.error);
+      break;
+    case 'Cleveland Brown':
+      msg.channel.send(`My name is Cleveland Brown\nAnd I am proud to be\nRight back in my hometown\nWith my new family\nThere's old friends\nAnd new friends\nAnd even a bear\nThrough good times\nAnd bad times\nIt's true love we share\nAnd so I found a place\nWhere everyone will know\nMy happy mustached face\nThis is The Cleveland Show!`)
+        .catch(console.error);
+      break;
+    default:
+      break;
+  }
 });
 
-// crash fix
-client.on('error', err => {
- throw err;
-});
+function clock() {
+  // check hushed people
+  // swap secret room user
+  saveDatabase();
+}
+
+var clockTimerID = setInterval(clock(), 600000);
 
 client.login('INSERT_ACCESS_TOKEN_HERE');
 
 /*
 UPDATE NEGATIVE TEN:
 >add .hush
- >hush a person with duration and reason, put them on a list with a timestamp
- >unhush when the time has been exceeded
- >record the hush in the hush log
- >tell the person hush length and reason in the timeout channel
+  >hush a person with duration and reason, put them on a list with a timestamp
+  >unhush when the time has been exceeded
+  >record the hush in the hush log
+  >tell the person hush length and reason in the timeout channel
 */
 
 /*
 UPDATE NEGATIVE NINE:
+>add the secret room
+*/
+
+/*
+UPDATE NEGATIVE EIGHT:
 >add .req or .request
- >store a request w/ owner
- >has rate limit per person
-  >will function similarly to .hush
- >only owner or mods can delete requests
- >requests can be fulfilled by anyone with .req done ...
-  >fulfilled requests are invisible and have the person who filled it's name added
-  >invisible fulfillment leaderboard - important this remains invisible! :)
- >request search
-  >very basic regex search, nothing phenomenal here
+  >store a request w/ owner
+  >has rate limit per person
+    >will function similarly to .hush
+  >only owner or mods can delete requests
+  >requests can be fulfilled by anyone with .req done ...
+    >fulfilled requests are invisible and have the person who filled it's name added
+    >invisible fulfillment leaderboard - important this remains invisible! :)
+  >request search
+    >very basic regex search, nothing phenomenal here
 */
 
 // APRIL FOOL'S
@@ -209,16 +194,16 @@ UPDATE NEGATIVE NINE:
 const nWord = /(nigga|nigger)/;
 
 client.on('message', msg => {
- if (msg.author.bot === true) return;
- if (nWord.test(msg.content.toLowerCase())) {
-  if (msg.member.roles.find(rol => rol.id === 'N_WORD_PASS_ROLE')) {
-   return;
-  } else {
-   msg.delete()
-    .catch(console.error);
-   msg.member.addRole('PUNISHMENT_ROLE')
-    .catch(console.error);
+  if (msg.author.bot === true) return;
+  if (nWord.test(msg.content.toLowerCase())) {
+    if (msg.member.roles.find(rol => rol.id === 'N_WORD_PASS_ROLE')) {
+      return;
+    } else {
+      msg.delete()
+        .catch(console.error);
+      msg.member.addRole('PUNISHMENT_ROLE')
+        .catch(console.error);
+    }
   }
- }
 });
 */
