@@ -90,14 +90,20 @@ if (roleMenu || teamMenu) {
 //////// END DISABLED ZONE ////////
 
 // hush users
-async function hushUser(guild, userID, hushDuration, hushDurationRaw, hushReason) {
-  let hushedMember = await guild.fetchMember(userID);
-  let timeToUnhush = Date.now() + hushDuration;
-  database.hushes.push([hushedMember, timeToUnhush]);
-  hushedMember.addRole(hushRole)
-    .catch(console.error);
-  logChannel.send(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`)
-    .catch(console.error);
+async function hushUser(originMessage, userID, hushDuration, hushDurationRaw, hushReason) {
+  try {
+    let hushedMember = await originMessage.guild.fetchMember(userID);
+    let timeToUnhush = Date.now() + hushDuration;
+    database.hushes.push([hushedMember, timeToUnhush]);
+    hushedMember.addRole(hushRole)
+      .catch(console.error);
+    originMessage.channel.send(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`)
+      .catch(console.error);
+    logChannel.send(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`)
+      .catch(console.error);
+  } catch(error) {
+    return Promise.reject('Invalid user ID!');
+  }
 }
 
 // check stray hushed users
@@ -160,7 +166,7 @@ client.on('message', msg => {
   }
   // admin command interpreter
   if (msg.member.roles.find(rol => (rol.id === '507317774272430090'))) {
-    if (/^\:hush/.test(msg.content)) {
+    if (/^\:hush\ /.test(msg.content)) {
       let hushCom = msg.content.split(/\ +/g);
       if (hushCom.length < 3) {
         msg.channel.send('Syntax: :hush <mention or userID> <duration i.e. 30m, 2d12h> <hush reason>')
@@ -215,7 +221,11 @@ client.on('message', msg => {
             break;
         }
       }
-      hushUser(msg.guild, userIDToHush, hushDuration, hushCom[2], hushReason);
+      hushUser(msg, userIDToHush, hushDuration, hushCom[2], hushReason)
+        .catch((error) => {
+          msg.channel.send(error)
+            .catch(console.error);
+        });
     }
     switch (msg.content) {
       case ':save':
