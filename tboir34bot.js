@@ -157,7 +157,7 @@ function clock() {
 
 var clockTimerID = setInterval(clock, 600000);
 
-client.login('INSERT_ACCESS_TOKEN_HERE');
+client.login('INSERT_ACCESS_KEY_HERE');
 
 /*
 UPDATE NEGATIVE TEN:
