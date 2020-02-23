@@ -155,7 +155,7 @@ function clock() {
   saveDatabase();
 }
 
-var clockTimerID = setInterval(clock(), 600000);
+var clockTimerID = setInterval(clock, 600000);
 
 client.login('INSERT_ACCESS_TOKEN_HERE');
 
