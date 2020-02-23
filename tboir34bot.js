@@ -99,7 +99,7 @@ client.on('message', msg => {
   }
   if (msg.author.bot === true) return;
   // potential DM support
-  if ((msg.channel.type !== 'dm') || (msg.channel.type !== 'group')) {
+  if ((msg.channel.type === 'dm') || (msg.channel.type === 'group')) {
     return;
   }
   // admin command interpreter
