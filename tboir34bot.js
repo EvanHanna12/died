@@ -45,7 +45,7 @@ client.on('error', err => {
 // roles
 async function role(rct, usr, action) {
   if (usr.bot === true) return;
-  let role = false;
+  let role = null;
   let mbr = await rct.message.guild.fetchMember(usr)
     .catch(console.error);
   if (rct.message.id === roleMenu) {
@@ -62,7 +62,7 @@ async function role(rct, usr, action) {
         break;
     }
   }
-  if (role === false) return;
+  if (role === null) return;
   if (action === 'add') {
     mbr.addRole(role)
       .catch(console.error);
@@ -97,8 +97,11 @@ client.on('message', msg => {
         .catch(console.error);
     }
   }
-
   if (msg.author.bot === true) return;
+  // potential DM support
+  if ((msg.channel.type !== 'dm') || (msg.channel.type !== 'group')) {
+    return;
+  }
   // admin command interpreter
   if (msg.member.roles.find(rol => (rol.id === '507317774272430090'))) {
     if (/^\.hush/.test(msg.content)) { // .hush
@@ -116,9 +119,8 @@ client.on('message', msg => {
         break;
     }
   }
-  
+  // fun command interpreter
   if (msg.channel.id !== botChannel) return;
-  // g
   if (loneG.test(msg.content)) {
     database.gcount++;
     let toSend = msg.content;
@@ -130,7 +132,6 @@ client.on('message', msg => {
       .catch(console.error);
     return;
   }
-  // fun command interpreter
   switch (msg.content) {
     case '.roll':
       msg.channel.send(Math.floor(Math.random() * 100)+1)
@@ -157,7 +158,7 @@ function clock() {
 
 var clockTimerID = setInterval(clock, 600000);
 
-client.login('INSERT_ACCESS_KEY_HERE');
+client.login('INSERT_ACCESS_TOKEN_HERE');
 
 /*
 UPDATE NEGATIVE TEN:
