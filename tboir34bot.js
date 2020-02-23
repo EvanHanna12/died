@@ -5,7 +5,7 @@ const Discord = require('discord.js');
 // database setup
 const dataPath = 'isaacdata.txt';
 
-let database = JSON.parse(fs.readFileSync(dataPath, 'utf8')); // possibly change to async? // add error handling
+let database = JSON.parse(fs.readFileSync(dataPath, 'utf8')); // possibly change to async? // add error handling and initialization SOON
 function saveDatabase() {
   let newDatabase = JSON.stringify(database);
   fs.writeFile(dataPath, newDatabase, 'utf8', (err) => {
@@ -14,7 +14,10 @@ function saveDatabase() {
 }
 
 const botChannel = '267047410604310530';
-const logChannel = '472484924839034880';
+const logChannelID = '472484924839034880';
+let logChannel = null;
+
+const hushRole = '533813599072944148';
 
 // role menu setup - might just get this to be set and read into a file later
 const roleMenuChannel = '621437874998345748';
@@ -32,6 +35,10 @@ client.on('ready', () => {
   if (teamMenu) {
     client.channels.get(roleMenuChannel).fetchMessage(teamMenu)
       .catch(console.error);
+  }
+  if (logChannelID) {
+    logChannel = client.channels.get(logChannelID);
+    console.log('Got logChannel.');
   }
 });
 
@@ -82,6 +89,55 @@ if (roleMenu || teamMenu) {
 
 //////// END DISABLED ZONE ////////
 
+// hush users
+async function hushUser(guild, userID, hushDuration, hushDurationRaw, hushReason) {
+  let hushedMember = await guild.fetchMember(userID);
+  let timeToUnhush = Date.now() + hushDuration;
+  database.hushes.push([hushedMember, timeToUnhush]);
+  hushedMember.addRole(hushRole)
+    .catch(console.error);
+  logChannel.send(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`)
+    .catch(console.error);
+}
+
+// check stray hushed users
+function manuallyCheckHush(msg) {
+  let reqHush = database.hushes.find(hush => (hush[0].id === msg.member.id));
+  if (reqHush) {
+    if (Date.now() < reqHush[1]) {
+      let specificHushTimeLeft = Math.ceil((reqHush[1] - Date.now())/60000);
+      if (specificHushTimeLeft === 1) {
+        msg.channel.send(`You have less than a minute remaining.`)
+          .catch(console.error);
+        return;
+      } else {
+        msg.channel.send(`You have ${specificHushTimeLeft} minutes remaining.`)
+          .catch(console.error);
+        return;
+      }
+    } else {
+      checkHushes();
+      return;
+    }
+  } else if (msg.member.roles.find(rol => (rol.id === hushRole))) {
+    msg.channel.send('Oops! Stray hush removed.')
+      .catch(console.error);
+    msg.member.removeRole(hushRole)
+      .catch(console.error);
+  }
+}
+
+// autocheck hushes
+function checkHushes() {
+  database.hushes.forEach((hush, index) => {
+    if (Date.now() >= hush[1]) {
+      hush[0].removeRole(hushRole)
+       .catch(console.error);
+      database.hushes.splice(index, 1);
+    }
+  });
+}
+
 // link filter definitions
 const goodLink = /\.(png|jpg|jpeg|mp4|webm|gif|com|net|org|be)/;
 // g definitions
@@ -104,20 +160,78 @@ client.on('message', msg => {
   }
   // admin command interpreter
   if (msg.member.roles.find(rol => (rol.id === '507317774272430090'))) {
-    if (/^\.hush/.test(msg.content)) { // .hush
-      // INSERT_HUSH_COMMAND
-      /*
-      Syntax: .hush <user> <duration> <reason>
-      */
+    if (/^\:hush/.test(msg.content)) {
+      let hushCom = msg.content.split(/\ +/g);
+      if (hushCom.length < 3) {
+        msg.channel.send('Syntax: :hush <mention or userID> <duration i.e. 30m, 2d12h> <hush reason>')
+          .catch(console.error);
+        return;
+      } else if (!(/^(<@!)?\d+(>)?$/.test(hushCom[1]) && /^(\d+(s|m|h|d|w))+$/.test(hushCom[2]))) {
+        console.log(hushCom);
+        console.log(hushCom.join(', '));
+        msg.channel.send('Syntax: :hush <mention or userID> <duration i.e. 30m, 2d12h> <hush reason>')
+          .catch(console.error);
+        return;
+      }
+      let userIDToHush = hushCom[1].match(/\d+/).join('');
+      let hushDurationUnparsed = hushCom[2].match(/\d+(?:m|h|d|w)/g);
+      let hushDuration = hushDurationUnparsed.reduce((sum, lengthByte) => {
+        let segmentedByte = lengthByte.match(/(?:\d+|m|h|d|w)/g);
+        switch (segmentedByte[1]) {
+          case 'm':
+            return sum + (segmentedByte[0] * 60000);
+          case 'h':
+            return sum + (segmentedByte[0] * 3600000);
+          case 'd':
+            return sum + (segmentedByte[0] * 86400000);
+          case 'w':
+            return sum + (segmentedByte[0] * 604800000);
+        }
+      }, 0);
+      let hushReason = null;
+      if (hushCom[3]) {
+        hushReason = hushCom.slice(3).join(' ');
+        switch (hushReason) {
+          case 'r1':
+            hushReason = 'doxxing or otherwise revealing personal information pertaining to someone else';
+            break;
+          case 'r2':
+            hushReason = 'being unkind';
+            break;
+          case 'r3':
+            hushReason = 'spamming or derailing';
+            break;
+          case 'r4':
+            hushReason = 'posting content that disturbs people or is otherwise against Discord ToS';
+            break;
+          case 'r5':
+            hushReason = 'intentionally posting in the wrong channel';
+            break;
+          case 'r6':
+            hushReason = 'harassing people for their kinks';
+            break;
+          case 'r7':
+            hushReason = 'getting too political';
+            break;
+        }
+      }
+      hushUser(msg.guild, userIDToHush, hushDuration, hushCom[2], hushReason);
     }
     switch (msg.content) {
-      case '.save':
+      case ':save':
         saveDatabase();
         console.log('Saved the database manually.');
         msg.channel.send('Saved the database manually.')
           .catch(console.error);
         break;
+      case ':logdb':
+        console.log(database);
+        break;
     }
+  }
+  // check hush
+  if (msg.content === ':checkhush') {
+    manuallyCheckHush(msg);
   }
   // fun command interpreter
   if (msg.channel.id !== botChannel) return;
@@ -133,11 +247,11 @@ client.on('message', msg => {
     return;
   }
   switch (msg.content) {
-    case '.roll':
+    case ':roll':
       msg.channel.send(Math.floor(Math.random() * 100)+1)
         .catch(console.error);
       break;
-    case '.muffin':
+    case ':muffin':
       msg.channel.send('<a:muffin:534165693638377472>')
         .catch(console.error);
       break;
@@ -151,7 +265,7 @@ client.on('message', msg => {
 });
 
 function clock() {
-  // check hushed people
+  checkHushes();
   // swap secret room user
   saveDatabase();
 }
@@ -159,15 +273,6 @@ function clock() {
 var clockTimerID = setInterval(clock, 600000);
 
 client.login('INSERT_ACCESS_TOKEN_HERE');
-
-/*
-UPDATE NEGATIVE TEN:
->add .hush
-  >hush a person with duration and reason, put them on a list with a timestamp
-  >unhush when the time has been exceeded
-  >record the hush in the hush log
-  >tell the person hush length and reason in the timeout channel
-*/
 
 /*
 UPDATE NEGATIVE NINE:
