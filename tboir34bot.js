@@ -100,13 +100,14 @@ async function hushUser(originMessage, userID, hushDuration, hushDurationRaw, hu
   try {
     let hushedMember = await originMessage.guild.fetchMember(userID);
     let timeToUnhush = Date.now() + hushDuration;
-    database.hushes.push([hushedMember, timeToUnhush]);
+    database.hushes.push([userID, timeToUnhush]);
     hushedMember.addRole(hushRole)
       .catch(console.error);
     originMessage.channel.send(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`)
       .catch(console.error);
     logChannel.send(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`)
       .catch(console.error);
+    console.log(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`);
   } catch(error) {
     return Promise.reject('Invalid user ID!');
   }
@@ -114,7 +115,7 @@ async function hushUser(originMessage, userID, hushDuration, hushDurationRaw, hu
 
 // check stray hushed users
 function manuallyCheckHush(msg) {
-  let reqHush = database.hushes.find(hush => (hush[0].id === msg.member.id));
+  let reqHush = database.hushes.find(hush => (hush[0] === msg.member.id));
   if (reqHush) {
     if (Date.now() < reqHush[1]) {
       let specificHushTimeLeft = Math.ceil((reqHush[1] - Date.now())/60000);
@@ -143,11 +144,20 @@ function manuallyCheckHush(msg) {
 function checkHushes() {
   database.hushes.forEach((hush, index) => {
     if (Date.now() >= hush[1]) {
-      hush[0].removeRole(hushRole)
-       .catch(console.error);
+      unhush(hush[0])
+        .catch((error) => {console.log(error);});
       database.hushes.splice(index, 1);
     }
   });
+}
+async function unhush(mbrID) {
+  try {
+    let memberToUnhush = await mainGuild.fetchMember(mbrID); // change this to support multiguilds later, lol
+    memberToUnhush.removeRole(hushRole)
+      .catch(console.error);
+  } catch(error) {
+    return Promise.reject('Couldn\'t find a user to unhush in r/TBoIr34! Check manually!');
+  }
 }
 
 // secret
@@ -159,7 +169,7 @@ function swapSecretOwner() {
   let newSecretOwner = mainGuild.members.random();
   newSecretOwner.addRole(secretRole)
     .catch(console.error);
-  database.currentSecretOwner = newSecretOwner;
+  database.currentSecretOwner = newSecretOwner; // this working is a fluke - replace with storing IDs next update
   console.log(`Passed secret to ${newSecretOwner.user.username}#${newSecretOwner.user.discriminator}.`);
 }
 
@@ -192,8 +202,6 @@ client.on('message', msg => {
           .catch(console.error);
         return;
       } else if (!(/^(<@!)?\d+(>)?$/.test(hushCom[1]) && /^(\d+(s|m|h|d|w))+$/.test(hushCom[2]))) {
-        console.log(hushCom);
-        console.log(hushCom.join(', '));
         msg.channel.send('Syntax: :hush <mention or userID> <duration i.e. 30m, 2d12h> <hush reason>')
           .catch(console.error);
         return;
