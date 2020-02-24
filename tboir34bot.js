@@ -5,6 +5,9 @@ const Discord = require('discord.js');
 // database setup
 const dataPath = 'isaacdata.txt';
 
+// secret setup
+let mainGuild = '255491840063700992';
+
 let database = JSON.parse(fs.readFileSync(dataPath, 'utf8')); // possibly change to async? // add error handling and initialization SOON
 function saveDatabase() {
   let newDatabase = JSON.stringify(database);
@@ -18,6 +21,7 @@ const logChannelID = '472484924839034880';
 let logChannel = null;
 
 const hushRole = '533813599072944148';
+const secretRole = '678520543074320396';
 
 // role menu setup - might just get this to be set and read into a file later
 const roleMenuChannel = '621437874998345748';
@@ -38,7 +42,9 @@ client.on('ready', () => {
   }
   if (logChannelID) {
     logChannel = client.channels.get(logChannelID);
-    console.log('Got logChannel.');
+  }
+  if (mainGuild) {
+    mainGuild = client.guilds.get(mainGuild);
   }
 });
 
@@ -144,6 +150,19 @@ function checkHushes() {
   });
 }
 
+// secret
+function swapSecretOwner() {
+  if (database.currentSecretOwner !== undefined) {
+    database.currentSecretOwner.removeRole(secretRole)
+      .catch(console.error);
+  }
+  let newSecretOwner = mainGuild.members.random();
+  newSecretOwner.addRole(secretRole)
+    .catch(console.error);
+  database.currentSecretOwner = newSecretOwner;
+  console.log(`Passed secret to ${newSecretOwner.user.username}#${newSecretOwner.user.discriminator}.`);
+}
+
 // link filter definitions
 const goodLink = /\.(png|jpg|jpeg|mp4|webm|gif|com|net|org|be)/;
 // g definitions
@@ -161,7 +180,7 @@ client.on('message', msg => {
   }
   if (msg.author.bot === true) return;
   // potential DM support
-  if ((msg.channel.type === 'dm') || (msg.channel.type === 'group')) {
+  if (msg.channel.type !== 'text') {
     return;
   }
   // admin command interpreter
@@ -237,6 +256,14 @@ client.on('message', msg => {
       case ':logdb':
         console.log(database);
         break;
+      case ':manualswap':
+        swapSecretOwner();
+        break;
+      case ':cachemembers':
+        msg.guild.fetchMembers();
+        msg.channel.send('Cached. WARNING: USE THIS SPARINGLY.')
+          .catch(console.error);
+        break;
     }
   }
   // check hush
@@ -276,18 +303,13 @@ client.on('message', msg => {
 
 function clock() {
   checkHushes();
-  // swap secret room user
+  swapSecretOwner();
   saveDatabase();
 }
 
 var clockTimerID = setInterval(clock, 600000);
 
 client.login('INSERT_ACCESS_TOKEN_HERE');
-
-/*
-UPDATE NEGATIVE NINE:
->add the secret room
-*/
 
 /*
 UPDATE NEGATIVE EIGHT:
