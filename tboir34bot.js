@@ -115,7 +115,7 @@ async function hushUser(originMessage, userID, hushDuration, hushDurationRaw, hu
 
 // check stray hushed users
 function manuallyCheckHush(msg) {
-  let reqHush = database.hushes.find(hush => (hush[0] === msg.member.id));
+  let reqHush = database.hushes.find(hush => (hush[0] === msg.author.id));
   if (reqHush) {
     if (Date.now() < reqHush[1]) {
       let specificHushTimeLeft = Math.ceil((reqHush[1] - Date.now())/60000);
@@ -150,9 +150,9 @@ function checkHushes() {
     }
   });
 }
-async function unhush(mbrID) {
+async function unhush(usrID) {
   try {
-    let memberToUnhush = await mainGuild.fetchMember(mbrID); // change this to support multiguilds later, lol
+    let memberToUnhush = await mainGuild.fetchMember(usrID); // change this to support multiguilds later, lol
     memberToUnhush.removeRole(hushRole)
       .catch(console.error);
   } catch(error) {
@@ -169,16 +169,16 @@ function swapSecretOwner() {
   let newSecretOwner = mainGuild.members.random();
   newSecretOwner.addRole(secretRole)
     .catch(console.error);
-  database.currentSecretOwner = newSecretOwner.id; // this working is a fluke - replace with storing IDs next update
+  database.currentSecretOwner = newSecretOwner.user.id;
   console.log(`Passed secret to ${newSecretOwner.user.username}#${newSecretOwner.user.discriminator}.`);
 }
-async function removeOldRoles() {
+async function removeOldRoles(usrID) {
   try {
-    let oldSecretOwner = await mainGuild.fetchMember(mbrID);
+    let oldSecretOwner = await mainGuild.fetchMember(usrID);
     oldSecretOwner.removeRole(secretRole)
       .catch(console.error);
   } catch(error) {
-    reject('Couldn\'t retrieve the current secret owner! Remove it manually!');
+    return Promise.reject('Couldn\'t retrieve the current secret owner! Remove it manually!');
   }
 }
 
@@ -204,7 +204,7 @@ client.on('message', msg => {
   }
   // admin command interpreter
   if (msg.member.roles.find(rol => (rol.id === '507317774272430090'))) {
-    if (/^\:hush\ /.test(msg.content)) {
+    if (/^\:hush(\ .+)?$/.test(msg.content.toLowerCase())) {
       let hushCom = msg.content.split(/\ +/g);
       if (hushCom.length < 3) {
         msg.channel.send('Syntax: :hush <mention or userID> <duration i.e. 30m, 2d12h> <hush reason>')
