@@ -145,7 +145,7 @@ function checkHushes() {
   database.hushes.forEach((hush, index) => {
     if (Date.now() >= hush[1]) {
       unhush(hush[0])
-        .catch((error) => {console.log(error);});
+        .catch(error => console.log(error));
       database.hushes.splice(index, 1);
     }
   });
@@ -163,14 +163,23 @@ async function unhush(mbrID) {
 // secret
 function swapSecretOwner() {
   if (database.currentSecretOwner !== undefined) {
-    database.currentSecretOwner.removeRole(secretRole)
-      .catch(console.error);
+    removeOldRoles(database.currentSecretOwner)
+      .catch(error => console.log(error));
   }
   let newSecretOwner = mainGuild.members.random();
   newSecretOwner.addRole(secretRole)
     .catch(console.error);
-  database.currentSecretOwner = newSecretOwner; // this working is a fluke - replace with storing IDs next update
+  database.currentSecretOwner = newSecretOwner.id; // this working is a fluke - replace with storing IDs next update
   console.log(`Passed secret to ${newSecretOwner.user.username}#${newSecretOwner.user.discriminator}.`);
+}
+async function removeOldRoles() {
+  try {
+    let oldSecretOwner = await mainGuild.fetchMember(mbrID);
+    oldSecretOwner.removeRole(secretRole)
+      .catch(console.error);
+  } catch(error) {
+    reject('Couldn\'t retrieve the current secret owner! Remove it manually!');
+  }
 }
 
 // link filter definitions
