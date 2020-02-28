@@ -161,25 +161,17 @@ async function unhush(usrID) {
 }
 
 // secret
-function swapSecretOwner() {
+async function swapSecretOwner() {
   if (database.currentSecretOwner !== undefined) {
-    removeOldRoles(database.currentSecretOwner)
-      .catch(error => console.log(error));
+    let oldSecretOwner = await mainGuild.fetchMember(database.currentSecretOwner);
+    oldSecretOwner.removeRole(secretRole)
+      .catch(console.error);
   }
   let newSecretOwner = mainGuild.members.random();
   newSecretOwner.addRole(secretRole)
     .catch(console.error);
   database.currentSecretOwner = newSecretOwner.user.id;
   console.log(`Passed secret to ${newSecretOwner.user.username}#${newSecretOwner.user.discriminator}.`);
-}
-async function removeOldRoles(usrID) {
-  try {
-    let oldSecretOwner = await mainGuild.fetchMember(usrID);
-    oldSecretOwner.removeRole(secretRole)
-      .catch(console.error);
-  } catch(error) {
-    return Promise.reject('Couldn\'t retrieve the current secret owner! Remove it manually!');
-  }
 }
 
 // link filter definitions
@@ -202,15 +194,21 @@ client.on('message', msg => {
   if (msg.channel.type !== 'text') {
     return;
   }
+  // failsafe
+  if (msg.member === null) {
+    console.log('Something went wrong! Message data:');
+    console.log(msg);
+    return;
+  }
   // admin command interpreter
-  if (msg.member.roles.find(rol => (rol.id === '507317774272430090'))) {
+  if (msg.member.roles.has('507317774272430090')) {
     if (/^\:hush(\ .+)?$/.test(msg.content.toLowerCase())) {
       let hushCom = msg.content.split(/\ +/g);
       if (hushCom.length < 3) {
         msg.channel.send('Syntax: :hush <mention or userID> <duration i.e. 30m, 2d12h> <hush reason>')
           .catch(console.error);
         return;
-      } else if (!(/^(<@!)?\d+(>)?$/.test(hushCom[1]) && /^(\d+(s|m|h|d|w))+$/.test(hushCom[2]))) {
+      } else if (!(/^(<@!?)?\d+(>)?$/.test(hushCom[1]) && /^(\d+(s|m|h|d|w))+$/.test(hushCom[2]))) {
         msg.channel.send('Syntax: :hush <mention or userID> <duration i.e. 30m, 2d12h> <hush reason>')
           .catch(console.error);
         return;
