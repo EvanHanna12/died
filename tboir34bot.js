@@ -163,9 +163,12 @@ async function unhush(usrID) {
 // secret
 async function swapSecretOwner() {
   if (database.currentSecretOwner !== undefined) {
-    let oldSecretOwner = await mainGuild.fetchMember(database.currentSecretOwner);
-    oldSecretOwner.removeRole(secretRole)
-      .catch(console.error);
+    await mainGuild.fetchMember(database.currentSecretOwner)
+      .then((oldSecretOwner) => {
+        oldSecretOwner.removeRole(secretRole)
+          .catch(console.error);
+      })
+      .catch(() => console.log('Couldn\'t find the current secret owner, remove it manually!'));
   }
   let newSecretOwner = mainGuild.members.random();
   newSecretOwner.addRole(secretRole)
@@ -195,7 +198,7 @@ client.on('message', msg => {
     return;
   }
   // failsafe
-  if (msg.member === null) {
+  if (msg.member === undefined) {
     console.log('Something went wrong! Message data:');
     console.log(msg);
     return;
