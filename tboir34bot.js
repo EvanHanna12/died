@@ -279,7 +279,7 @@ client.on('message', msg => {
           .catch(console.error);
         return;
       }
-      let userIDToUnhush = hushCom[1].match(/\d+/).join('');
+      let userIDToUnhush = unhushCom[1].match(/\d+/).join('');
       let success = false;
       database.hushes.forEach((hush, index) => {
         if (userIDToUnhush === hush[0]) {
@@ -319,7 +319,7 @@ client.on('message', msg => {
   }
   // check hush
   if (msg.content.toLowerCase() === ':checkhush') {
-    manuallyCheckHush(msg.channel);
+    manuallyCheckHush(msg);
     return;
   }
   // fun command interpreter
