@@ -8,7 +8,7 @@ const dataPath = 'isaacdata.txt';
 // secret setup
 let mainGuild = '255491840063700992';
 
-let database = JSON.parse(fs.readFileSync(dataPath, 'utf8')); // possibly change to async? // add error handling and initialization SOON
+let database = JSON.parse(fs.readFileSync(dataPath, 'utf8')); // add error handling and initialization SOON
 function saveDatabase() {
   let newDatabase = JSON.stringify(database);
   fs.writeFile(dataPath, newDatabase, 'utf8', (err) => {
@@ -33,18 +33,18 @@ client.on('ready', () => {
   client.user.setActivity("with the silenced", {type: "PLAYING"});
 // caching role menus (note: this only works if no more than 200 messages are in the channel with the role menu)
   if (roleMenu) {
-    client.channels.get(roleMenuChannel).fetchMessage(roleMenu)
+    client.channels.cache.get(roleMenuChannel).messages.fetch(roleMenu)
       .catch(console.error);
   }
   if (teamMenu) {
-    client.channels.get(roleMenuChannel).fetchMessage(teamMenu)
+    client.channels.cache.get(roleMenuChannel).messages.fetch(teamMenu)
       .catch(console.error);
   }
   if (logChannelID) {
-    logChannel = client.channels.get(logChannelID);
+    logChannel = client.channels.cache.get(logChannelID);
   }
   if (mainGuild) {
-    mainGuild = client.guilds.get(mainGuild);
+    mainGuild = client.guilds.cache.get(mainGuild);
   }
 });
 
@@ -59,7 +59,7 @@ client.on('error', err => {
 async function role(rct, usr, action) {
   if (usr.bot === true) return;
   let role = null;
-  let mbr = await rct.message.guild.fetchMember(usr)
+  let mbr = await rct.message.guild.members.fetch(usr)
     .catch(console.error);
   if (rct.message.id === roleMenu) {
     switch (rct.emoji.id) { // holy crap, replace this with an array using .find()
@@ -68,7 +68,7 @@ async function role(rct, usr, action) {
         break;
     }
   } else if (rct.message.id === teamMenu) {
-    if (action === 'add' && !(mbr.roles.every(role => {return ((role.id !== '') && (role.id !== '') && (role.id !== ''));}))) return; // replace the team role check with something more concise
+    if (action === 'add' && !(mbr.roles.cache.every(role => {return ((role.id !== '') && (role.id !== '') && (role.id !== ''));}))) return; // replace the team role check with something more concise
     switch (rct.emoji.id) {
       case '':
         role = '';
@@ -77,11 +77,11 @@ async function role(rct, usr, action) {
   }
   if (role === null) return;
   if (action === 'add') {
-    mbr.addRole(role)
+    mbr.roles.add(role)
       .catch(console.error);
   }
   if (action === 'remove') {
-    mbr.removeRole(role)
+    mbr.roles.add(role)
       .catch(console.error);
   }
 }
@@ -98,10 +98,10 @@ if (roleMenu || teamMenu) {
 // hush users
 async function hushUser(originMessage, userID, hushDuration, hushDurationRaw, hushReason) {
   try {
-    let hushedMember = await originMessage.guild.fetchMember(userID);
+    let hushedMember = await originMessage.guild.members.fetch(userID);
     let timeToUnhush = Date.now() + hushDuration;
     database.hushes.push([userID, timeToUnhush]);
-    hushedMember.addRole(hushRole)
+    hushedMember.roles.add(hushRole)
       .catch(console.error);
     originMessage.channel.send(`${hushedMember.user.username}#${hushedMember.user.discriminator} has been hushed for ${hushDurationRaw} for ${hushReason}.`)
       .catch(console.error);
@@ -113,7 +113,29 @@ async function hushUser(originMessage, userID, hushDuration, hushDurationRaw, hu
   }
 }
 
-// check stray hushed users
+// unhush
+async function unhush(usrID) {
+  try {
+    let memberToUnhush = await mainGuild.members.fetch(usrID); // change this to support multiguilds later, lol
+    memberToUnhush.roles.remove(hushRole)
+      .catch(console.error);
+  } catch(error) {
+    return Promise.reject('Couldn\'t find a user to unhush in r/TBoIr34! Check manually!');
+  }
+}
+
+// autocheck hushes
+function checkHushes() {
+  database.hushes.forEach((hush, index) => {
+    if (Date.now() >= hush[1]) {
+      unhush(hush[0], index)
+        .catch(error => console.log(error));
+      database.hushes.splice(index, 1);
+    }
+  });
+}
+
+// check hushed users
 function manuallyCheckHush(msg) {
   let reqHush = database.hushes.find(hush => (hush[0] === msg.author.id));
   if (reqHush) {
@@ -132,46 +154,26 @@ function manuallyCheckHush(msg) {
       checkHushes();
       return;
     }
-  } else if (msg.member.roles.find(rol => (rol.id === hushRole))) {
+  } else if (msg.member.roles.cache.has(hushRole)) {
     msg.channel.send('Oops! Stray hush removed.')
       .catch(console.error);
-    msg.member.removeRole(hushRole)
+    msg.member.roles.remove(hushRole)
       .catch(console.error);
-  }
-}
-
-// autocheck hushes
-function checkHushes() {
-  database.hushes.forEach((hush, index) => {
-    if (Date.now() >= hush[1]) {
-      unhush(hush[0])
-        .catch(error => console.log(error));
-      database.hushes.splice(index, 1);
-    }
-  });
-}
-async function unhush(usrID) {
-  try {
-    let memberToUnhush = await mainGuild.fetchMember(usrID); // change this to support multiguilds later, lol
-    memberToUnhush.removeRole(hushRole)
-      .catch(console.error);
-  } catch(error) {
-    return Promise.reject('Couldn\'t find a user to unhush in r/TBoIr34! Check manually!');
   }
 }
 
 // secret
 async function swapSecretOwner() {
   if (database.currentSecretOwner !== undefined) {
-    await mainGuild.fetchMember(database.currentSecretOwner)
+    await mainGuild.members.fetch(database.currentSecretOwner)
       .then((oldSecretOwner) => {
-        oldSecretOwner.removeRole(secretRole)
+        oldSecretOwner.roles.remove(secretRole)
           .catch(console.error);
       })
       .catch(() => console.log('Couldn\'t find the current secret owner, remove it manually!'));
   }
-  let newSecretOwner = mainGuild.members.random();
-  newSecretOwner.addRole(secretRole)
+  let newSecretOwner = mainGuild.members.cache.random();
+  newSecretOwner.roles.add(secretRole)
     .catch(console.error);
   database.currentSecretOwner = newSecretOwner.user.id;
   console.log(`Passed secret to ${newSecretOwner.user.username}#${newSecretOwner.user.discriminator}.`);
@@ -190,6 +192,7 @@ client.on('message', msg => {
     } else {
       msg.delete()
         .catch(console.error);
+      return;
     }
   }
   if (msg.author.bot === true) return;
@@ -263,8 +266,38 @@ client.on('message', msg => {
           msg.channel.send(error)
             .catch(console.error);
         });
+      return;
     }
-    switch (msg.content) {
+    if (/^\:unhush(\ .+)?$/.test(msg.content.toLowerCase())) {
+      let unhushCom = msg.content.split(/\ +/g);
+      if (unhushCom.length < 2) {
+        msg.channel.send('Syntax: :unhush <mention or userID>')
+          .catch(console.error);
+        return;
+      } else if (!(/^(<@!?)?\d+(>)?$/.test(unhushCom[1]))) {
+        msg.channel.send('Syntax: :unhush <mention or userID>')
+          .catch(console.error);
+        return;
+      }
+      let userIDToUnhush = hushCom[1].match(/\d+/).join('');
+      let success = false;
+      database.hushes.forEach((hush, index) => {
+        if (userIDToUnhush === hush[0]) {
+          success = true;
+          msg.channel.send('Unhushed.')
+            .catch(console.error);
+          unhush(hush[0], index)
+            .catch(error => console.log(error));
+          database.hushes.splice(index, 1);
+        }
+      });
+      if (success === false) {
+        msg.channel.send('Didn\'t find anyone hushed with that ID. Try :checkhush.')
+          .catch(console.error);
+      }
+      return;
+    }
+    switch (msg.content.toLowerCase()) {
       case ':save':
         saveDatabase();
         console.log('Saved the database manually.');
@@ -278,15 +311,16 @@ client.on('message', msg => {
         swapSecretOwner();
         break;
       case ':cachemembers':
-        msg.guild.fetchMembers();
+        msg.guild.members.fetch();
         msg.channel.send('Cached. WARNING: USE THIS SPARINGLY.')
           .catch(console.error);
         break;
     }
   }
   // check hush
-  if (msg.content === ':checkhush') {
-    manuallyCheckHush(msg);
+  if (msg.content.toLowerCase() === ':checkhush') {
+    manuallyCheckHush(msg.channel);
+    return;
   }
   // fun command interpreter
   if (msg.channel.id !== botChannel) return;
@@ -303,7 +337,7 @@ client.on('message', msg => {
   }
   switch (msg.content) {
     case ':roll':
-      msg.channel.send(Math.floor(Math.random() * 100)+1)
+      msg.channel.send(`${Math.floor(Math.random() * 100)+1}`)
         .catch(console.error);
       break;
     case ':muffin':
@@ -330,36 +364,27 @@ var clockTimerID = setInterval(clock, 600000);
 client.login('INSERT_ACCESS_TOKEN_HERE');
 
 /*
+UPDATE NEGATIVE NINE PATCH X:
+>add :hushextend and :hushreduce
+
 UPDATE NEGATIVE EIGHT:
->add .req or .request
+>rewrite the command interpreter to be simpler (less if-else/switch-case statements)
+>add :req or :request
   >store a request w/ owner
   >has rate limit per person
-    >will function similarly to .hush
   >only owner or mods can delete requests
-  >requests can be fulfilled by anyone with .req done ...
+  >requests can be fulfilled by anyone with :req done ...
     >fulfilled requests are invisible and have the person who filled it's name added
     >invisible fulfillment leaderboard - important this remains invisible! :)
   >request search
     >very basic regex search, nothing phenomenal here
-*/
 
-// APRIL FOOL'S
-// If reused, replace areas in all caps.
-
-/*
-const nWord = /(nigga|nigger)/;
-
-client.on('message', msg => {
-  if (msg.author.bot === true) return;
-  if (nWord.test(msg.content.toLowerCase())) {
-    if (msg.member.roles.find(rol => rol.id === 'N_WORD_PASS_ROLE')) {
-      return;
-    } else {
-      msg.delete()
-        .catch(console.error);
-      msg.member.addRole('PUNISHMENT_ROLE')
-        .catch(console.error);
-    }
-  }
-});
+UPDATE NEGATIVE SEVEN:
+UPDATE NEGATIVE SIX:
+UPDATE NEGATIVE FIVE:
+UPDATE NEGATIVE FOUR:
+UPDATE NEGATIVE THREE:
+UPDATE NEGATIVE TWO:
+UPDATE NEGATIVE ONE:
+UPDATE ZERO:
 */
