@@ -207,7 +207,7 @@ client.on('message', msg => {
     return;
   }
   // admin command interpreter
-  if (msg.member.roles.has('507317774272430090')) {
+  if (msg.member.roles.cache.has('507317774272430090')) {
     if (/^\:hush(\ .+)?$/.test(msg.content.toLowerCase())) {
       let hushCom = msg.content.split(/\ +/g);
       if (hushCom.length < 3) {
