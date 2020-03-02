@@ -201,7 +201,7 @@ client.on('message', msg => {
     return;
   }
   // failsafe
-  if (msg.member === undefined) {
+  if (msg.member === undefined || msg.member === null) {
     console.log('Something went wrong! Message data:');
     console.log(msg);
     return;
